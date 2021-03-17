@@ -1,0 +1,19 @@
+<script>
+    fetch("data.csv")
+    .then(inAccept=>inAccept.text(), inReject=>{console.log("couldnt fetch", inReject)})
+    .then(inAccept=>{
+        let lines = inAccept.split(">");
+        lines.pop();
+        let output = [];
+        lines.forEach(line =>
+        {
+            let columns = line.split("|");
+            output.push({
+                title:columns[0],
+                id:columns[1],
+                topics:columns[2].split(",")
+            });
+        });
+        console.log(output);
+    })
+</script>
