@@ -1,19 +1,180 @@
-<script>
-    fetch("data.csv")
-    .then(inAccept=>inAccept.text(), inReject=>{console.log("couldnt fetch", inReject)})
-    .then(inAccept=>{
-        let lines = inAccept.split(">");
-        lines.pop();
-        let output = [];
-        lines.forEach(line =>
-        {
-            let columns = line.split("|");
-            output.push({
-                title:columns[0],
-                id:columns[1],
-                topics:columns[2].split(",")
-            });
+<div id="root"></div>
+<script type="module">
+import _ from "https://dev.jspm.io/lodash";
+import React from "https://dev.jspm.io/react/index.js";
+import ReactDOM from "https://dev.jspm.io/react-dom/index.js";
+import ReactDOMServer from "https://dev.jspm.io/react-dom/server.js";
+let h = React.createElement;
+
+let ElemApp = props =>
+{
+    return h("div", null,
+    [
+        h("h4", {key:0}, "topics"),
+        h(ElemTopics, {key:1}),
+        h("h4", {key:2}, "results"),
+        h(ElemItems, {key:3})
+    ]
+    );
+};
+
+let ElemItems = props =>
+{
+    let children = App.State.Items.Active.map( i=>h(ElemItem, {...i, key:i.id} ) );
+    return h("div", null, children);
+}
+let ElemItem = props =>
+{
+    return h("div", {key:0}, [
+        h("h3", {key:1}, props.title),
+        h("p", {key:2}, props.id),
+        h("small", {key:3}, props.bible)
+    ])
+};
+
+let ElemTopics = props =>
+{
+    let children = App.State.Topics.All.map( t=>
+    {
+        return h(ElemTopic, {
+            onClick:e=>App.Update("topic-toggle", t),
+            key:t.id,
+            label:t.display, 
+            active:t.active
         });
-        console.log(output);
-    })
+    });
+    return h("div", null, children);
+};
+let ElemTopic = props =>
+{
+    let label = props.active? props.label+" !" : props.label;
+    return h("button", {onClick:props.onClick}, label);
+};
+
+var App = {
+    State:
+    {
+        Items:
+        {
+            All:[],
+            Active:[]
+        },
+        Topics:
+        {
+            All:
+            [
+                {
+                    id:"gospel-the",
+                    display:"The Gospel",
+                    active:false
+                },
+                {
+                    id:"jesus-christ",
+                    display:"Jesus Christ",
+                    active:false
+                },
+                {
+                    id:"biblical-figures",
+                    display:"Biblical Figures",
+                    active:false
+                },
+                {
+                    id:"free-will",
+                    display:"Free Will",
+                    active:false
+                },
+                {
+                    id:"secular-culture",
+                    display:"Secular Culture",
+                    active:false
+                }
+            ],
+            Active:[]
+        },
+        Scripture:
+        {
+            All:{},
+            Active:[]
+        }
+    },
+    RootDOM:document.querySelector("#root"),
+    RootComponent:ElemApp,
+    Render:()=>ReactDOM.render( h(App.RootComponent), App.RootDOM ),
+    ApplyFilters:()=>
+    {
+        if(App.State.Topics.Active.length == 0)
+        {
+            App.State.Items.Active = [...App.State.Items.All];
+        }
+        else
+        {
+            App.State.Items.Active = App.State.Items.All.filter( item =>
+            {
+                for(let i=0; i<item.topics.length; i++)
+                {
+                    for(let j=0; j<App.State.Topics.Active.length; j++)
+                    {
+                        if(item.topics[i] == App.State.Topics.Active[j].id)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            });
+        }
+    },
+    Update:(...action)=>
+    {
+        if(action)
+        {
+            switch(action[0])
+            {
+                case "load":
+                    fetch(action[1])
+                    .then(inAccept=>inAccept.text())
+                    .then(inAccept=>
+                    {
+                        let columns = inAccept.split("|");
+                        App.State.Items.All = [];
+                        for(let i=0; i<columns.length; i+=4)
+                        {
+                            let row = Math.floor(i/4);
+                            App.State.Items.All[row] = {
+                                title:columns[i+0],
+                                id:columns[i+1],
+                                bible:columns[i+2].split("*"),
+                                topics:columns[i+3].split("*")
+                            };
+                        }
+                        App.ApplyFilters();
+                        App.Render();
+                    }
+                    );
+                    break;
+
+                case "topic-toggle" :
+                    let topic = action[1];
+                    if(topic.active)
+                    {
+                        topic.active = false;
+                        App.State.Topics.Active = App.State.Topics.Active.filter( t=>t.id != topic.id );
+                    }
+                    else
+                    {
+                        topic.active = true;
+                        App.State.Topics.Active.push(topic);
+                    }
+                    App.ApplyFilters();
+                    App.Render();
+                    break;
+            }
+        }
+    }
+};
+
+
+App.Update("load", "data-flat.csv");
+
+
 </script>
