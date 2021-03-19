@@ -1,9 +1,20 @@
 <div id="root"></div>
 <script type="module">
+
 import _ from "https://dev.jspm.io/lodash";
 import React from "https://dev.jspm.io/react/index.js";
 import ReactDOM from "https://dev.jspm.io/react-dom/index.js";
 import ReactDOMServer from "https://dev.jspm.io/react-dom/server.js";
+
+let Util = {
+    ParsePassage:inRef=>
+    {
+        let indexNumeric = inRef.lastIndexOf(" ");
+        let partBook = inRef.substring(0, indexNumeric);
+        let chapterVerse = inRef.substring(indexNumeric+1).split(":");
+        return [partBook, chapterVerse[0], chapterVerse[1]];
+    }
+};
 let h = React.createElement;
 
 let ElemApp = props =>
@@ -12,7 +23,6 @@ let ElemApp = props =>
     [
         h("h4", {key:0}, "topics"),
         h(ElemTopics, {key:1}),
-        h("h4", {key:2}, "results"),
         h(ElemItems, {key:3})
     ]
     );
@@ -20,16 +30,94 @@ let ElemApp = props =>
 
 let ElemItems = props =>
 {
-    let children = App.State.Items.Active.map( i=>h(ElemItem, {...i, key:i.id} ) );
-    return h("div", null, children);
+    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.id} ) );
+
+    let pages = h(ElemPager, {count:App.State.Pages.All.length, active:App.State.Pages.Active}, null);
+
+    return h("div", null, [
+        h("h4", {key:0}, App.State.Items.Active.length+" results"),
+        h("div", {key:1}, pages),
+        h("div", {key:2}, list),
+        h("div", {key:3}, pages)
+    ]);
 }
 let ElemItem = props =>
 {
     return h("div", {key:0}, [
-        h("h3", {key:1}, props.title),
-        h("p", {key:2}, props.id),
+        h("div", {key:1},
+        [
+            h("span", {key:0}, props.title),
+            h("em", {key:1}, props.id)
+        ]
+        ),
         h("small", {key:3}, props.bible)
     ])
+};
+let ElemPager = ({count, active}) =>
+{
+    var children;
+    var blockIntro, blockAt, blockOutro;
+    var hitLeft, hitRight;
+
+    let renderRange = (inStart, inStop) =>
+    {
+        let output = [];
+        for(let i=inStart; i<=inStop; i++)
+        {
+            output.push(h("button", {key:i, onClick:e=>App.Update("page", i)}, i+1));
+        }
+        return output;
+    }
+    let renderSpacer = () => h("span", {key:Math.random()}, "…");
+
+
+    blockIntro = [0, 1, 2];
+    blockAt = [active-1, active, active+1];
+    blockOutro = [count-3, count-2, count-1];
+
+    hitLeft = _.last(blockIntro) >= _.head(blockAt);
+    hitRight = _.last(blockAt) >= _.head(blockOutro);
+
+    if(count < 2)
+    {
+        children = [];
+    }
+    else
+    {
+        if( (hitLeft && hitRight) || count < 7)
+        {
+            children = renderRange(_.head(blockIntro), _.last(blockOutro))
+        }
+        else if(!hitLeft && hitRight)
+        {
+            children = [
+                ...renderRange(_.head(blockIntro), _.last(blockIntro)),
+                renderSpacer(),
+                ...renderRange(Math.min(_.head(blockAt), _.head(blockOutro)), _.last(blockOutro)) /* merge end */
+            ];
+        }
+        else if(hitLeft && !hitRight)
+        {
+            children = [
+                ...renderRange(_.head(blockIntro), Math.max(_.last(blockAt), _.last(blockIntro)) ), /* merge beginning */
+                renderSpacer(),
+                ...renderRange(_.head(blockOutro), _.last(blockOutro))
+            ];
+        }
+        else if(!hitLeft && !hitRight)
+        {
+            children = [
+                ...renderRange(_.head(blockIntro), _.last(blockIntro)),
+                renderSpacer(),
+                ...renderRange(_.head(blockAt), _.last(blockAt)),
+                renderSpacer(),
+                ...renderRange(_.head(blockOutro), _.last(blockOutro))
+            ];
+        }
+
+    }
+
+    return h("div", {}, children);
 };
 
 let ElemTopics = props =>
@@ -59,6 +147,11 @@ var App = {
             All:[],
             Active:[]
         },
+        Pages:
+        {
+            All:[],
+            Active:0,
+        },
         Topics:
         {
             All:
@@ -66,27 +159,32 @@ var App = {
                 {
                     id:"gospel-the",
                     display:"The Gospel",
-                    active:false
+                    active:false,
+                    members:[]
                 },
                 {
                     id:"jesus-christ",
                     display:"Jesus Christ",
-                    active:false
+                    active:false,
+                    members:[]
                 },
                 {
                     id:"biblical-figures",
                     display:"Biblical Figures",
-                    active:false
+                    active:false,
+                    members:[]
                 },
                 {
                     id:"free-will",
                     display:"Free Will",
-                    active:false
+                    active:false,
+                    members:[]
                 },
                 {
                     id:"secular-culture",
                     display:"Secular Culture",
-                    active:false
+                    active:false,
+                    members:[]
                 }
             ],
             Active:[]
@@ -123,6 +221,8 @@ var App = {
                 return false;
             });
         }
+        App.State.Pages.All = _.chunk(App.State.Items.Active, 10);
+        App.State.Pages.Active = 0;
     },
     Update:(...action)=>
     {
@@ -168,6 +268,13 @@ var App = {
                     App.ApplyFilters();
                     App.Render();
                     break;
+
+                case "page" :
+                    if(action[1] !== false)
+                    {
+                        App.State.Pages.Active = action[1];
+                        App.Render();
+                    }
             }
         }
     }
