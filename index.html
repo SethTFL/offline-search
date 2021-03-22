@@ -64,7 +64,7 @@ let ElemPager = ({count, active}) =>
         let output = [];
         for(let i=inStart; i<=inStop; i++)
         {
-            output.push(h("button", {key:i, onClick:e=>App.Update("page", i)}, i+1));
+            output.push(h("button", {key:i, onClick:e=>App.Update.Page(i)}, i+1));
         }
         return output;
     }
@@ -86,7 +86,7 @@ let ElemPager = ({count, active}) =>
     {
         if( (hitLeft && hitRight) || count < 7)
         {
-            children = renderRange(_.head(blockIntro), _.last(blockOutro))
+            children = renderRange(_.head(blockIntro), _.last(blockOutro)) /* merge all */
         }
         else if(!hitLeft && hitRight)
         {
@@ -125,7 +125,7 @@ let ElemTopics = props =>
     let children = App.State.Topics.All.map( t=>
     {
         return h(ElemTopic, {
-            onClick:e=>App.Update("topic-toggle", t),
+            onClick:e=>App.Update.Topic(t),
             key:t.id,
             label:t.display, 
             active:t.active
@@ -224,64 +224,57 @@ var App = {
         App.State.Pages.All = _.chunk(App.State.Items.Active, 10);
         App.State.Pages.Active = 0;
     },
-    Update:(...action)=>
+    Update:
     {
-        if(action)
+        Load:(file)=>
         {
-            switch(action[0])
-            {
-                case "load":
-                    fetch(action[1])
-                    .then(inAccept=>inAccept.text())
-                    .then(inAccept=>
+            fetch(file)
+                .then(inAccept=>inAccept.text())
+                .then(inAccept=>
+                {
+                    let columns = inAccept.split("|");
+                    App.State.Items.All = [];
+                    for(let i=0; i<columns.length; i+=4)
                     {
-                        let columns = inAccept.split("|");
-                        App.State.Items.All = [];
-                        for(let i=0; i<columns.length; i+=4)
-                        {
-                            let row = Math.floor(i/4);
-                            App.State.Items.All[row] = {
-                                title:columns[i+0],
-                                id:columns[i+1],
-                                bible:columns[i+2].split("*"),
-                                topics:columns[i+3].split("*")
-                            };
-                        }
-                        App.ApplyFilters();
-                        App.Render();
-                    }
-                    );
-                    break;
-
-                case "topic-toggle" :
-                    let topic = action[1];
-                    if(topic.active)
-                    {
-                        topic.active = false;
-                        App.State.Topics.Active = App.State.Topics.Active.filter( t=>t.id != topic.id );
-                    }
-                    else
-                    {
-                        topic.active = true;
-                        App.State.Topics.Active.push(topic);
+                        let row = Math.floor(i/4);
+                        App.State.Items.All[row] = {
+                            title:columns[i+0],
+                            id:columns[i+1],
+                            bible:columns[i+2].split("*"),
+                            topics:columns[i+3].split("*")
+                        };
                     }
                     App.ApplyFilters();
                     App.Render();
-                    break;
-
-                case "page" :
-                    if(action[1] !== false)
-                    {
-                        App.State.Pages.Active = action[1];
-                        App.Render();
-                    }
+                }
+            );
+        },
+        Topic:(topic)=>
+        {
+            if(topic.active)
+            {
+                topic.active = false;
+                App.State.Topics.Active = App.State.Topics.Active.filter( t=>t.id != topic.id );
+            }
+            else
+            {
+                topic.active = true;
+                App.State.Topics.Active.push(topic);
+            }
+            App.ApplyFilters();
+            App.Render();
+        },
+        Page:(page)=>
+        {
+            if(page !== false)
+            {
+                App.State.Pages.Active = page;
+                App.Render();
             }
         }
     }
 };
 
-
-App.Update("load", "data-flat.csv");
-
+App.Update.Load("data-flat.csv");
 
 </script>
