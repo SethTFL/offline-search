@@ -1,3 +1,50 @@
+<script>
+let Node = {
+    Create:(inID, inDisplay, inChildren)=>
+    {
+        let node = {
+            ID:inID,
+            Display:inDisplay,
+            Active:false,
+            Highlighted:0,
+            Parent:false,
+            Children:inChildren,
+            Leaves:[]
+        };
+        if(inChildren)
+        {
+            inChildren.forEach(c=>c.Parent = node);
+        }
+        return node;
+    },
+    Path:(inNode, inList) =>
+    {
+        let node = inNode;
+        while(node)
+        {
+            inList.push(node);
+            node = node.Parent;
+        }
+    },
+    Leaves:(inNode, inList) =>
+    {
+        var i;
+        var child;
+        if(inNode.Children)
+        {
+            for(i=0; i<inNode.Children.length; i++)
+            {
+                Node.Decedents(inNode.Children[i], inList);
+            }
+        }
+        else
+        {
+            inList.push(inNode);
+        }
+    }
+};
+</script>
+
 <div id="root"></div>
 <script type="module">
 
@@ -15,12 +62,14 @@ let Util = {
         return [partBook, chapterVerse[0], chapterVerse[1]];
     }
 };
+
 let h = React.createElement;
 
 let ElemApp = props =>
 {
     return h("div", null,
     [
+        h(ElemTreeNode, {key:"tree", node:App.State.Tree.Root}),
         h("h4", {key:0}, "topics"),
         h(ElemTopics, {key:1}),
         h(ElemItems, {key:3})
@@ -139,6 +188,30 @@ let ElemTopic = props =>
     return h("button", {onClick:props.onClick}, label);
 };
 
+let ElemTreeNode = ({node}) =>
+{
+    let children = [];
+    if(node.Children)
+    {
+        children = node.Children.map( c=>h(ElemTreeNode, {node:c, key:c.ID}));
+    }
+    
+    return h("div", {style:{padding:"10px"}}, [
+        h("strong", {
+            onClick:e=>
+            {
+                e.stopPropagation();
+                App.Update.Select(App.State.Tree, node);
+            },
+            style:
+            {
+                background:node.Highlighted?"red":"none"
+            }
+        }, node.Display),
+        h("div", {}, children)
+    ]);
+};
+
 var App = {
     State:
     {
@@ -151,6 +224,21 @@ var App = {
         {
             All:[],
             Active:0,
+        },
+        Tree:
+        {
+            Active:false,
+            Highlighted:false,
+            Root:
+            Node.Create("root", "Root", [
+                Node.Create("b1", "Branch 1", [
+                    Node.Create("l1", "Leaf One")
+                ]),
+                Node.Create("b2", "Branch 2", [
+                    Node.Create("l2", "Leaf Two"),
+                    Node.Create("l3", "Leaf Three"),
+                ])
+            ])
         },
         Topics:
         {
@@ -195,6 +283,7 @@ var App = {
             Active:[]
         }
     },
+
     RootDOM:document.querySelector("#root"),
     RootComponent:ElemApp,
     Render:()=>ReactDOM.render( h(App.RootComponent), App.RootDOM ),
@@ -224,8 +313,39 @@ var App = {
         App.State.Pages.All = _.chunk(App.State.Items.Active, 10);
         App.State.Pages.Active = 0;
     },
+
     Update:
     {
+        Select:(inTree, inNode)=>
+        {
+            if(inNode.Active)
+            {
+                inNode.Active = false;
+                inTree.Highlighted.forEach( h=>h.Highlighted-- );
+
+                inTree.Root.Active = true;
+                inTree.Root.Highlighted = true;
+                
+                inTree.Active = inTree.Root;
+                inTree.Highlighted = [inTree.Root];
+            }
+            else
+            {
+                if(inTree.Active)
+                {
+                    inTree.Active.Active = false;
+                    inTree.Highlighted.forEach( h=>h.Highlighted-- );
+                }
+
+                inTree.Active = inNode;
+                inTree.Active.Active = true;
+                inTree.Highlighted = [];
+                Node.Path(inTree.Active, inTree.Highlighted);
+                inTree.Highlighted.forEach( h=>h.Highlighted++ );
+            }
+            console.log(inTree);
+            App.Render();
+        },
         Load:(file)=>
         {
             fetch(file)
