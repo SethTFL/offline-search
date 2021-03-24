@@ -1,50 +1,3 @@
-<script>
-let Node = {
-    Create:(inID, inDisplay, inChildren)=>
-    {
-        let node = {
-            ID:inID,
-            Display:inDisplay,
-            Active:false,
-            Highlighted:0,
-            Parent:false,
-            Children:inChildren,
-            Leaves:[]
-        };
-        if(inChildren)
-        {
-            inChildren.forEach(c=>c.Parent = node);
-        }
-        return node;
-    },
-    Path:(inNode, inList) =>
-    {
-        let node = inNode;
-        while(node)
-        {
-            inList.push(node);
-            node = node.Parent;
-        }
-    },
-    Leaves:(inNode, inList) =>
-    {
-        var i;
-        var child;
-        if(inNode.Children)
-        {
-            for(i=0; i<inNode.Children.length; i++)
-            {
-                Node.Decedents(inNode.Children[i], inList);
-            }
-        }
-        else
-        {
-            inList.push(inNode);
-        }
-    }
-};
-</script>
-
 <div id="root"></div>
 <script type="module">
 
@@ -69,7 +22,8 @@ let ElemApp = props =>
 {
     return h("div", null,
     [
-        h(ElemTreeNode, {key:"tree", node:App.State.Tree.Root}),
+        h(ElemTree, {key:"tree1", tree:App.State.Tree}),
+        h(ElemTree, {key:"tree2", tree:App.State.Bible}),
         h("h4", {key:0}, "topics"),
         h(ElemTopics, {key:1}),
         h(ElemItems, {key:3})
@@ -188,28 +142,141 @@ let ElemTopic = props =>
     return h("button", {onClick:props.onClick}, label);
 };
 
-let ElemTreeNode = ({node}) =>
+let ElemTree = ({tree}) =>
+{
+    let activeItems = tree.Active.map( a=>h("button", {key:a.ID, onClick:e=>App.Update.Select(a, tree)}, a.Display) )
+    return h("div", {},
+    [
+        h("h3", {key:"title"}, tree.Display),
+        h("div", {key:"list"}, activeItems),
+        h(ElemTreeNode, {key:"tree", node:tree.Root, tree:tree}),
+    ]);
+}
+let ElemTreeNode = ({node, tree}) =>
 {
     let children = [];
-    if(node.Children)
+    if(node.Children && node.Open)
     {
-        children = node.Children.map( c=>h(ElemTreeNode, {node:c, key:c.ID}));
+        children = node.Children.map( c=>h(ElemTreeNode, {node:c, tree:tree, key:c.ID}));
     }
-    
+
+    let elemTitle = (inExpandable, inButton) =>
+    {
+        let attributes = null;
+        let parts = [h("span", null, node.Display)];
+
+        if(inExpandable)
+        {
+            attributes = {onClick:e=>{ e.stopPropagation(); App.Update.Interact(node); }};
+            parts.unshift(h("span", null, node.Open?"-":"+"));
+        }
+        if(inButton)
+        {
+            parts.push(
+                h("button",
+                { onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); } },
+                node.Active?"remove":"add")
+            );
+        }
+        return h("div", attributes, parts);
+    }
+
+    var partTitle;
+
+    if(!node.Parent)
+    {
+        partTitle = elemTitle(true, false);
+    }
+    else
+    {
+        if(node.Children)
+        {
+            partTitle = elemTitle(true, true);
+        }
+        else
+        {
+            partTitle = elemTitle(false, true);
+        }
+    }
+
     return h("div", {style:{padding:"10px"}}, [
-        h("strong", {
-            onClick:e=>
-            {
-                e.stopPropagation();
-                App.Update.Select(App.State.Tree, node);
-            },
-            style:
-            {
-                background:node.Highlighted?"red":"none"
-            }
-        }, node.Display),
+        partTitle,
         h("div", {}, children)
     ]);
+};
+
+
+let Node = {
+    Create:(inID, inDisplay, inChildren)=>
+    {
+        let node = {
+            ID:inID,
+            Display:inDisplay,
+            Open:false,
+            Active:false,
+            Parent:false,
+            Children:inChildren,
+            Leaves:[]
+        };
+        if(inChildren)
+        {
+            inChildren.forEach(c=>c.Parent = node);
+        }
+        return node;
+    },
+    IterateDown:(inNode, inIterator)=>
+    {
+        if( inIterator(inNode) )
+        {
+            return true;
+        }
+        if(inNode.Children)
+        {
+            for(let i=0; i<inNode.Children.length; i++)
+            {
+                if(Node.IterateDown(inNode.Children[i], inIterator))
+                {
+                    return true;
+                }
+            }
+        }
+    },
+    IterateUp:(inNode, inIterator)=>
+    {
+        if( inIterator(inNode) )
+        {
+            return true;
+        }
+        if(inNode.Parent)
+        {
+            Node.IterateUp(inNode.Parent, inIterator);
+        }
+    },
+    Path:(inNode, inList) =>
+    {
+        let node = inNode;
+        while(node)
+        {
+            inList.push(node);
+            node = node.Parent;
+        }
+    },
+    Leaves:(inNode, inList) =>
+    {
+        var i;
+        var child;
+        if(inNode.Children)
+        {
+            for(i=0; i<inNode.Children.length; i++)
+            {
+                Node.Decedents(inNode.Children[i], inList);
+            }
+        }
+        else
+        {
+            inList.push(inNode);
+        }
+    }
 };
 
 var App = {
@@ -227,16 +294,41 @@ var App = {
         },
         Tree:
         {
-            Active:false,
-            Highlighted:false,
+            Display:"Topics",
+            Active:[],
             Root:
-            Node.Create("root", "Root", [
+            Node.Create("root", "All", [
                 Node.Create("b1", "Branch 1", [
-                    Node.Create("l1", "Leaf One")
+                    Node.Create("l1", "Leaf One"),
+                    Node.Create("l2", "Leaf Two"),
+                    Node.Create("l3", "Leaf Three")
                 ]),
                 Node.Create("b2", "Branch 2", [
-                    Node.Create("l2", "Leaf Two"),
-                    Node.Create("l3", "Leaf Three"),
+                    Node.Create("l4", "Leaf Four"),
+                    Node.Create("l5", "Leaf Five"),
+                ])
+            ])
+        },
+        Bible:
+        {
+            Display:"Bible",
+            Active:[],
+            Root:
+            Node.Create("all", "All", [
+                Node.Create("ot", "Old Testament", [
+                    Node.Create("1", "Genesis"),
+                    Node.Create("2", "Exodus"),
+                    Node.Create("3", "Leviticus"),
+                    Node.Create("4", "Duteronomy"),
+                    Node.Create("5", "Numbers")
+                ]),
+                Node.Create("nt", "New Testament", [
+                    Node.Create("1", "Matthew"),
+                    Node.Create("2", "Mark"),
+                    Node.Create("3", "Luke"),
+                    Node.Create("4", "John"),
+                    Node.Create("5", "Acts"),
+                    Node.Create("6", "Romans"),
                 ])
             ])
         },
@@ -316,58 +408,76 @@ var App = {
 
     Update:
     {
-        Select:(inTree, inNode)=>
+        Interact:(inNode)=>
         {
-            if(inNode.Active)
+            if(inNode.Open)
             {
-                inNode.Active = false;
-                inTree.Highlighted.forEach( h=>h.Highlighted-- );
-
-                inTree.Root.Active = true;
-                inTree.Root.Highlighted = true;
-                
-                inTree.Active = inTree.Root;
-                inTree.Highlighted = [inTree.Root];
+                Node.IterateDown(inNode, n=>{n.Open=false;});
             }
             else
             {
-                if(inTree.Active)
-                {
-                    inTree.Active.Active = false;
-                    inTree.Highlighted.forEach( h=>h.Highlighted-- );
-                }
-
-                inTree.Active = inNode;
-                inTree.Active.Active = true;
-                inTree.Highlighted = [];
-                Node.Path(inTree.Active, inTree.Highlighted);
-                inTree.Highlighted.forEach( h=>h.Highlighted++ );
+                Node.IterateUp(inNode, n=>{n.Open=true;});
             }
-            console.log(inTree);
+            App.Render();
+        },
+        Select:(inNode, inTree)=>
+        {
+            let clear = c =>
+            {
+                let index = _.indexOf(inTree.Active, c);
+                inTree.Active.splice( index, 1 );
+                c.Active = false;
+            }
+
+            if(inNode.Active)
+            {
+                clear(inNode);
+            }
+            else
+            {
+                Node.IterateUp(inNode, n=>
+                {
+                    if(n.Active)
+                    {
+                        clear(n);
+                    }
+                });
+                Node.IterateDown(inNode, n=>
+                {
+                    if(n.Active)
+                    {
+                        clear(n);
+                    }
+                });
+                inNode.Active = true;
+                inTree.Active.push(inNode);
+            }
             App.Render();
         },
         Load:(file)=>
         {
             fetch(file)
-                .then(inAccept=>inAccept.text())
-                .then(inAccept=>
+            .then(inAccept=>inAccept.text())
+            .then(inAccept=>
+            {
+                let columns = inAccept.split("|");
+                App.State.Items.All = [];
+                for(let i=0; i<columns.length; i+=4)
                 {
-                    let columns = inAccept.split("|");
-                    App.State.Items.All = [];
-                    for(let i=0; i<columns.length; i+=4)
-                    {
-                        let row = Math.floor(i/4);
-                        App.State.Items.All[row] = {
-                            title:columns[i+0],
-                            id:columns[i+1],
-                            bible:columns[i+2].split("*"),
-                            topics:columns[i+3].split("*")
-                        };
-                    }
-                    App.ApplyFilters();
-                    App.Render();
+                    let row = Math.floor(i/4);
+                    App.State.Items.All[row] = {
+                        title:columns[i+0],
+                        id:columns[i+1],
+                        bible:columns[i+2].split("*"),
+                        topics:columns[i+3].split("*")
+                    };
                 }
-            );
+            })
+            .then(inAccept=>
+            {
+                App.ApplyFilters();
+                App.Render();
+            })
         },
         Topic:(topic)=>
         {
