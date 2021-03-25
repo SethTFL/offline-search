@@ -144,12 +144,20 @@ let ElemTopic = props =>
 
 let ElemTree = ({tree}) =>
 {
-    let activeItems = tree.Active.map( a=>h("button", {key:a.ID, onClick:e=>App.Update.Select(a, tree)}, a.Display) )
+    let activeItems = tree.Active.map( a=>{
+        return h("button", {disabled:a.Parent?false:true, key:a.ID, onClick:e=>App.Update.Select(a, tree)}, a.Display )
+     })
     return h("div", {},
     [
         h("h3", {key:"title"}, tree.Display),
-        h("div", {key:"list"}, activeItems),
-        h(ElemTreeNode, {key:"tree", node:tree.Root, tree:tree}),
+        h("div", {key:"filters-active"}, [
+            h("strong", {key:"label"}, "Showing:"),
+            h("span", {key:"list"}, activeItems)
+        ]),
+        h("div", {key:"filters-browse"}, [
+            h("strong", {key:"label"}, "Available:"),
+            h(ElemTreeNode, {key:"tree", node:tree.Root, tree:tree})
+        ])
     ]);
 }
 let ElemTreeNode = ({node, tree}) =>
@@ -170,14 +178,16 @@ let ElemTreeNode = ({node, tree}) =>
             attributes = {onClick:e=>{ e.stopPropagation(); App.Update.Interact(node); }};
             parts.unshift(h("span", null, node.Open?"-":"+"));
         }
-        if(inButton)
-        {
-            parts.push(
-                h("button",
-                { onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); } },
-                node.Active?"remove":"add")
-            );
-        }
+
+        parts.push(
+            h("button",
+            { 
+                disabled: (!inButton&&node.Active) ? true : false,
+                onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); }
+            },
+            node.Active?"remove":"add")
+        );
+
         return h("div", attributes, parts);
     }
 
@@ -427,30 +437,33 @@ var App = {
                 let index = _.indexOf(inTree.Active, c);
                 inTree.Active.splice( index, 1 );
                 c.Active = false;
-            }
+            };
+            let add = a =>
+            {
+                a.Active = true;
+                inTree.Active.push(a);
+            };
+            let itr = n=>
+            {
+                if(n.Active)
+                {
+                    clear(n);
+                }
+            };
 
             if(inNode.Active)
             {
                 clear(inNode);
+                if(inTree.Active.length == 0)
+                {
+                    add(inTree.Root);
+                }
             }
             else
             {
-                Node.IterateUp(inNode, n=>
-                {
-                    if(n.Active)
-                    {
-                        clear(n);
-                    }
-                });
-                Node.IterateDown(inNode, n=>
-                {
-                    if(n.Active)
-                    {
-                        clear(n);
-                    }
-                });
-                inNode.Active = true;
-                inTree.Active.push(inNode);
+                Node.IterateUp(inNode, itr);
+                Node.IterateDown(inNode, itr);
+                add(inNode);
             }
             App.Render();
         },
