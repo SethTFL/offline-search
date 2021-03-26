@@ -356,18 +356,12 @@ var App = {
         let topics = App.State.Topics;
         let items = App.State.Items;
 
-        if(topics.Active.length == 0 || !topics.Active[0].Parent )
+        items.Active = [];
+        for(let i=0; i<topics.Active.length; i++)
         {
-            items.Active = [...items.All];
+            items.Active = items.Active.concat( topics.Active[i].Leaves );
         }
-        else
-        {
-            items.Active = [];
-            for(let i=0; i<topics.Active.length; i++)
-            {
-                items.Active = items.Active.concat( topics.Active[i].Leaves );
-            }
-        }
+
         App.State.Pages.All = _.chunk(items.Active, 10);
         App.State.Pages.Active = 0;
     },
@@ -378,7 +372,7 @@ var App = {
         {
             if(!n.Children)
             {
-                output[n.ID] = n.Leaves;
+                output[n.ID] = n;
             }
         });
         return output;
@@ -438,7 +432,6 @@ var App = {
         },
         Load:(file)=>
         {
-
             let structTopics = App.LeafStructure(App.State.Topics);
             
             fetch(file)
@@ -464,20 +457,33 @@ var App = {
                         let match = structTopics[t];
                         if(match)
                         {
-                            match.push(output);
+                            match.Leaves.push(output);
                         }
                     });
 
                     App.State.Items.All[Math.floor(i/4)] = output;
                 }
+
+                Object.values(structTopics).forEach( inLeaf=>
+                {
+                    Node.IterateUp(inLeaf, inBranch=>
+                    {
+                        inBranch.Leaves = inBranch.Leaves.concat(inLeaf.Leaves);
+                    }
+                    );
+                }
+                );
+
             })
             .then(inAccept=>
             {
                 App.ApplyFilters();
                 App.Render();
+
+                console.log(structTopics);
             });
 
-            console.log(structTopics);
+            
         },
         Topic:(topic)=>
         {
