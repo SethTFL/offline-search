@@ -23,6 +23,7 @@ let ElemApp = props =>
     return h("div", null,
     [
         h(ElemTree, {key:"tree1", tree:App.State.Topics}),
+        h(ElemTree, {key:"tree2", tree:App.State.Bible}),
         h(ElemItems, {key:3})
     ]
     );
@@ -30,15 +31,13 @@ let ElemApp = props =>
 
 let ElemItems = props =>
 {
-
     if(App.State.Items.Active.length == 0)
     {
         return h("div", null, 
             h("h3", null, "no results found")
         )
     }
-
-    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.id} ) );
+    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.ID} ) );
     let pages = h(ElemPager, {count:App.State.Pages.All.length, active:App.State.Pages.Active}, null);
 
     return h("div", null, [
@@ -175,7 +174,7 @@ let ElemTreeNode = ({node, tree}) =>
     let elemTitle = (inExpandable, inButton) =>
     {
         let attributes = null;
-        let parts = [h("span", null, node.Display)];
+        let parts = [h("span", null, node.Display+" ("+node.Leaves.length+") ")];
 
         if(inExpandable)
         {
@@ -329,12 +328,62 @@ var App = {
             Active:[],
             Root:
             Node.Create("all", "All", [
-                Node.Create("ot", "Old Testament", [
-                    Node.Create("1", "Genesis"),
-                    Node.Create("2", "Exodus"),
-                    Node.Create("3", "Leviticus"),
-                    Node.Create("4", "Duteronomy"),
-                    Node.Create("5", "Numbers")
+                Node.Create("old ", "Old Testament",
+                [
+                    Node.Create("pent", "Pentatuch",
+                    [
+                        Node.Create("Genesis", "Genesis"),
+                        Node.Create("Exodus", "Exodus"),
+                        Node.Create("Leviticus", "Leviticus"),
+                        Node.Create("Duteronomy", "Duteronomy"),
+                        Node.Create("Numbers", "Numbers")
+                    ]),
+                    Node.Create("hist", "History",
+                    [
+                        Node.Create("Josua", "Josua"),
+                        Node.Create("Judges", "Judges"),
+                        Node.Create("Ruth", "Ruth"),
+                        Node.Create("1 Samuel", "1 Samuel"),
+                        Node.Create("2 Samuel", "2 Samuel"),
+                        Node.Create("1 Kings", "1 Kings"),
+                        Node.Create("2 Kings", "2 Kings"),
+                        Node.Create("1 Chronicles", "1 Chronicles"),
+                        Node.Create("2 Chronicles", "2 Chronicles"),
+                        Node.Create("Ezra", "Ezra"),
+                        Node.Create("Nehemiah", "Nehemiah"),
+                        Node.Create("Esther", "Esther")
+                    ]),
+                    Node.Create("poet", "Poetry",
+                    [
+                        Node.Create("Job", "Job"),
+                        Node.Create("Psalms", "Psalms"),
+                        Node.Create("Proverbs", "Proverbs"),
+                        Node.Create("Ecclesiastes", "Ecclesiastes"),
+                        Node.Create("Song of Songs", "Song of Songs"),
+                    ]),
+                    Node.Create("majo", "Major Prophets",
+                    [
+                        Node.Create("Isaiah", "Isaiah"),
+                        Node.Create("Jeremiah", "Jeremiah"),
+                        Node.Create("Lamentations", "Lamentations"),
+                        Node.Create("Ezekiel", "Ezekiel"),
+                        Node.Create("Daniel", "Daniel"),
+                    ]),
+                    Node.Create("mino", "Minor Prophets",
+                    [
+                        Node.Create("Hosea", "Hosea"),
+                        Node.Create("Joel", "Joel"),
+                        Node.Create("Amos", "Amos"),
+                        Node.Create("Obadiah", "Obadiah"),
+                        Node.Create("Jonah", "Jonah"),
+                        Node.Create("Micah", "Micah"),
+                        Node.Create("Nahum", "Nahum"),
+                        Node.Create("Habakkuk", "Habakkuk"),
+                        Node.Create("Zephaniah", "Zephaniah"),
+                        Node.Create("Haggai", "Haggai"),
+                        Node.Create("Zechariah", "Zechariah"),
+                        Node.Create("Malachi", "Malachi")
+                    ])
                 ]),
                 Node.Create("nt", "New Testament", [
                     Node.Create("1", "Matthew"),
@@ -354,13 +403,19 @@ var App = {
     ApplyFilters:()=>
     {
         let topics = App.State.Topics;
+        let bible = App.State.Bible;
+
         let items = App.State.Items;
 
-        items.Active = [];
-        for(let i=0; i<topics.Active.length; i++)
+        let itrCollect = inNode =>
         {
-            items.Active = items.Active.concat( topics.Active[i].Leaves );
-        }
+            items.Active = items.Active.concat( inNode.Leaves );
+        };
+
+        items.Active = [];
+
+        topics.Active.forEach(itrCollect);
+        bible.Active.forEach(itrCollect);
 
         App.State.Pages.All = _.chunk(items.Active, 10);
         App.State.Pages.Active = 0;
@@ -433,22 +488,32 @@ var App = {
         Load:(file)=>
         {
             let structTopics = App.LeafStructure(App.State.Topics);
+            let structBible = App.LeafStructure(App.State.Bible);
             
             fetch(file)
             .then(inAccept=>inAccept.text())
             .then(inAccept=>
             {
+
+                let itrUp = inLeaf=>
+                {
+                    Node.IterateUp(inLeaf, inBranch=>
+                    {
+                        inBranch.Leaves = inBranch.Leaves.concat(inLeaf.Leaves);
+                    });
+                };
+
                 let columns = inAccept.split("|");
-                App.State.Items.All = [];
 
                 for(let i=0; i<columns.length; i+=4)
                 {
                     let topics = columns[i+3].split("*");
+                    let bible = columns[i+2].split("*");
 
                     let output = {
                         title:columns[i+0],
                         id:columns[i+1],
-                        bible:columns[i+2].split("*"),
+                        bible:bible,
                         topics:topics
                     };
 
@@ -460,19 +525,22 @@ var App = {
                             match.Leaves.push(output);
                         }
                     });
+                    bible.forEach(t=>
+                    {
+                        let passage = Util.ParsePassage(t);
+                        let match = structBible[ passage[0] ];
+                        if(match)
+                        {
+                            match.Leaves.push(output);
+                        }
+                    });
 
                     App.State.Items.All[Math.floor(i/4)] = output;
                 }
 
-                Object.values(structTopics).forEach( inLeaf=>
-                {
-                    Node.IterateUp(inLeaf, inBranch=>
-                    {
-                        inBranch.Leaves = inBranch.Leaves.concat(inLeaf.Leaves);
-                    }
-                    );
-                }
-                );
+
+                Object.values(structTopics).forEach(itrUp);
+                Object.values(structBible).forEach(itrUp);
 
             })
             .then(inAccept=>
@@ -480,7 +548,7 @@ var App = {
                 App.ApplyFilters();
                 App.Render();
 
-                console.log(structTopics);
+                console.log(structBible);
             });
 
             
