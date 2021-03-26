@@ -505,17 +505,23 @@ var App = {
 
                 let columns = inAccept.split("|");
 
-                for(let i=0; i<columns.length; i+=4)
+                for(let i=0; i<columns.length; i+=5)
                 {
-                    let topics = columns[i+3].split("*");
-                    let bible = columns[i+2].split("*");
+                    let title  = columns[i+0];
+                    let id     = columns[i+1];
+                    let year   = columns[i+2];
+                    let bible  = columns[i+3].split("*");
+                    var topics;
+                    try
+                    {
+                        topics = columns[i+4].split("*");
+                    }
+                    catch(e)
+                    {
+                        console.log(e);
+                    }
 
-                    let output = {
-                        title:columns[i+0],
-                        id:columns[i+1],
-                        bible:bible,
-                        topics:topics
-                    };
+                    let output = { title, id, year, topics, bible };
 
                     topics.forEach(t=>
                     {
@@ -576,6 +582,8 @@ var App = {
     }
 };
 
-App.Update.Load("data-flat.csv");
+App.Update.Load("data-1.csv");
+App.Update.Load("data-2.csv");
+App.Update.Load("data-3.csv");
 
 </script>
