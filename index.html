@@ -487,13 +487,13 @@ var App = {
         },
         Load:(file)=>
         {
-            let structTopics = App.LeafStructure(App.State.Topics);
-            let structBible = App.LeafStructure(App.State.Bible);
             
             fetch(file)
             .then(inAccept=>inAccept.text())
             .then(inAccept=>
             {
+                let structTopics = App.LeafStructure(App.State.Topics);
+                let structBible = App.LeafStructure(App.State.Bible);
 
                 let itrUp = inLeaf=>
                 {
@@ -538,7 +538,6 @@ var App = {
                     App.State.Items.All[Math.floor(i/4)] = output;
                 }
 
-
                 Object.values(structTopics).forEach(itrUp);
                 Object.values(structBible).forEach(itrUp);
 
@@ -547,8 +546,6 @@ var App = {
             {
                 App.ApplyFilters();
                 App.Render();
-
-                console.log(structBible);
             });
 
             
