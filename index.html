@@ -22,10 +22,7 @@ let ElemApp = props =>
 {
     return h("div", null,
     [
-        h(ElemTree, {key:"tree1", tree:App.State.Tree}),
-        h(ElemTree, {key:"tree2", tree:App.State.Bible}),
-        h("h4", {key:0}, "topics"),
-        h(ElemTopics, {key:1}),
+        h(ElemTree, {key:"tree1", tree:App.State.Topics}),
         h(ElemItems, {key:3})
     ]
     );
@@ -33,8 +30,15 @@ let ElemApp = props =>
 
 let ElemItems = props =>
 {
-    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.id} ) );
 
+    if(App.State.Items.Active.length == 0)
+    {
+        return h("div", null, 
+            h("h3", null, "no results found")
+        )
+    }
+
+    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.id} ) );
     let pages = h(ElemPager, {count:App.State.Pages.All.length, active:App.State.Pages.Active}, null);
 
     return h("div", null, [
@@ -302,20 +306,20 @@ var App = {
             All:[],
             Active:0,
         },
-        Tree:
+        Topics:
         {
             Display:"Topics",
             Active:[],
             Root:
             Node.Create("root", "All", [
-                Node.Create("b1", "Branch 1", [
-                    Node.Create("l1", "Leaf One"),
-                    Node.Create("l2", "Leaf Two"),
-                    Node.Create("l3", "Leaf Three")
+                Node.Create("ideologies", "Ideologies", [
+                    Node.Create("gospel-the", "The Gospel"),
+                    Node.Create("free-will", "Free Will"),
+                    Node.Create("secular-culture", "Secular Culture")
                 ]),
-                Node.Create("b2", "Branch 2", [
-                    Node.Create("l4", "Leaf Four"),
-                    Node.Create("l5", "Leaf Five"),
+                Node.Create("people", "People", [
+                    Node.Create("biblical-figures", "Biblical Figures"),
+                    Node.Create("jesus-christ", "Jesus Christ"),
                 ])
             ])
         },
@@ -341,48 +345,6 @@ var App = {
                     Node.Create("6", "Romans"),
                 ])
             ])
-        },
-        Topics:
-        {
-            All:
-            [
-                {
-                    id:"gospel-the",
-                    display:"The Gospel",
-                    active:false,
-                    members:[]
-                },
-                {
-                    id:"jesus-christ",
-                    display:"Jesus Christ",
-                    active:false,
-                    members:[]
-                },
-                {
-                    id:"biblical-figures",
-                    display:"Biblical Figures",
-                    active:false,
-                    members:[]
-                },
-                {
-                    id:"free-will",
-                    display:"Free Will",
-                    active:false,
-                    members:[]
-                },
-                {
-                    id:"secular-culture",
-                    display:"Secular Culture",
-                    active:false,
-                    members:[]
-                }
-            ],
-            Active:[]
-        },
-        Scripture:
-        {
-            All:{},
-            Active:[]
         }
     },
 
@@ -391,29 +353,29 @@ var App = {
     Render:()=>ReactDOM.render( h(App.RootComponent), App.RootDOM ),
     ApplyFilters:()=>
     {
-        if(App.State.Topics.Active.length == 0)
+        let topics = App.State.Topics;
+        let items = App.State.Items;
+
+        items.Active = [];
+        for(let i=0; i<topics.Active.length; i++)
         {
-            App.State.Items.Active = [...App.State.Items.All];
+            items.Active = items.Active.concat( topics.Active[i].Leaves );
         }
-        else
-        {
-            App.State.Items.Active = App.State.Items.All.filter( item =>
-            {
-                for(let i=0; i<item.topics.length; i++)
-                {
-                    for(let j=0; j<App.State.Topics.Active.length; j++)
-                    {
-                        if(item.topics[i] == App.State.Topics.Active[j].id)
-                        {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            });
-        }
-        App.State.Pages.All = _.chunk(App.State.Items.Active, 10);
+
+        App.State.Pages.All = _.chunk(items.Active, 10);
         App.State.Pages.Active = 0;
+    },
+    LeafStructure:(inTree)=>
+    {
+        let output = {};
+        Node.IterateDown(inTree.Root, n=>
+        {
+            if(!n.Children)
+            {
+                output[n.ID] = n;
+            }
+        });
+        return output;
     },
 
     Update:
@@ -465,32 +427,63 @@ var App = {
                 Node.IterateDown(inNode, itr);
                 add(inNode);
             }
+            App.ApplyFilters();
             App.Render();
         },
         Load:(file)=>
         {
+            let structTopics = App.LeafStructure(App.State.Topics);
+            
             fetch(file)
             .then(inAccept=>inAccept.text())
             .then(inAccept=>
             {
                 let columns = inAccept.split("|");
                 App.State.Items.All = [];
+
                 for(let i=0; i<columns.length; i+=4)
                 {
-                    let row = Math.floor(i/4);
-                    App.State.Items.All[row] = {
+                    let topics = columns[i+3].split("*");
+
+                    let output = {
                         title:columns[i+0],
                         id:columns[i+1],
                         bible:columns[i+2].split("*"),
-                        topics:columns[i+3].split("*")
+                        topics:topics
                     };
+
+                    topics.forEach(t=>
+                    {
+                        let match = structTopics[t];
+                        if(match)
+                        {
+                            match.Leaves.push(output);
+                        }
+                    });
+
+                    App.State.Items.All[Math.floor(i/4)] = output;
                 }
+
+                Object.values(structTopics).forEach( inLeaf=>
+                {
+                    Node.IterateUp(inLeaf, inBranch=>
+                    {
+                        inBranch.Leaves = inBranch.Leaves.concat(inLeaf.Leaves);
+                    }
+                    );
+                }
+                );
+
             })
             .then(inAccept=>
             {
                 App.ApplyFilters();
                 App.Render();
-            })
+
+                console.log(structTopics);
+            });
+
+            
         },
         Topic:(topic)=>
         {
