@@ -181,16 +181,16 @@ let ElemTreeNode = ({node, tree}) =>
             attributes = {onClick:e=>{ e.stopPropagation(); App.Update.Interact(node); }};
             parts.unshift(h("span", null, node.Open?"-":"+"));
         }
-
-        parts.push(
-            h("button",
-            { 
-                disabled: (!inButton&&node.Active) ? true : false,
-                onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); }
-            },
-            node.Active?"remove":"add")
-        );
-
+        if(inButton)
+        {
+            parts.push(
+                h("button",
+                { 
+                    onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); }
+                },
+                node.Active?"remove":"add")
+            );
+        }
         return h("div", attributes, parts);
     }
 
@@ -312,6 +312,7 @@ var App = {
         Topics:
         {
             Display:"Topics",
+            Results:[],
             Active:[],
             Root:
             Node.Create("root", "All", [
@@ -330,6 +331,7 @@ var App = {
         Bible:
         {
             Display:"Bible",
+            Results:[],
             Active:[],
             Root:
             Node.Create("all", "All", [
@@ -404,8 +406,7 @@ var App = {
                     Node.Create("2 Corinthians"),
                     Node.Create("Galatians"),
                     Node.Create("Ephesians"),
-                    Node.Create("1 Thessalonians"),
-                    Node.Create("Romans"),
+                    Node.Create("1 Thessalonians")
                 ])
             ])
         }
@@ -416,22 +417,12 @@ var App = {
     Render:()=>ReactDOM.render( h(App.RootComponent), App.RootDOM ),
     ApplyFilters:()=>
     {
-        let topics = App.State.Topics;
-        let bible = App.State.Bible;
-
-        let items = App.State.Items;
-
-        let itrCollect = inNode =>
+        App.State.Items.Active = _.union(App.State.Topics.Results, App.State.Bible.Results);
+        if(App.State.Items.Active.length == 0)
         {
-            items.Active = items.Active.concat( inNode.Leaves );
-        };
-
-        items.Active = [];
-
-        topics.Active.forEach(itrCollect);
-        bible.Active.forEach(itrCollect);
-
-        App.State.Pages.All = _.chunk(items.Active, 10);
+            App.State.Items.Active = App.State.Items.All;
+        }
+        App.State.Pages.All = _.chunk(App.State.Items.Active, 10);
         App.State.Pages.Active = 0;
     },
     LeafStructure:(inTree)=>
@@ -485,10 +476,6 @@ var App = {
             if(inNode.Active)
             {
                 clear(inNode);
-                if(inTree.Active.length == 0)
-                {
-                    add(inTree.Root);
-                }
             }
             else
             {
@@ -496,6 +483,13 @@ var App = {
                 Node.IterateDown(inNode, itr);
                 add(inNode);
             }
+
+            inTree.Results = [];
+            inTree.Active.forEach(inNode =>
+            {
+                inTree.Results = inTree.Results.concat( inNode.Leaves );
+            });
+
             App.ApplyFilters();
             App.Render();
         },
