@@ -52,11 +52,11 @@ let ElemItem = props =>
     return h("div", {key:0}, [
         h("div", {key:1},
         [
-            h("span", {key:0}, props.title),
-            h("em", {key:1}, props.id)
+            h("span", {key:2}, props.title),
+            h("em", {key:3}, props.id)
         ]
         ),
-        h("small", {key:3}, props.bible)
+        h("small", {key:4}, props.bible)
     ])
 };
 let ElemPager = ({count, active}) =>
@@ -222,6 +222,10 @@ let ElemTreeNode = ({node, tree}) =>
 let Node = {
     Create:(inID, inDisplay, inChildren)=>
     {
+        if(!inDisplay)
+        {
+            inDisplay = inID;
+        }
         let node = {
             ID:inID,
             Display:inDisplay,
@@ -311,6 +315,7 @@ var App = {
             Active:[],
             Root:
             Node.Create("root", "All", [
+                Node.Create("", "Unclassified"),
                 Node.Create("ideologies", "Ideologies", [
                     Node.Create("gospel-the", "The Gospel"),
                     Node.Create("free-will", "Free Will"),
@@ -328,6 +333,7 @@ var App = {
             Active:[],
             Root:
             Node.Create("all", "All", [
+                Node.Create("", "Unclassified"),
                 Node.Create("old ", "Old Testament",
                 [
                     Node.Create("pent", "Pentatuch",
@@ -359,7 +365,7 @@ var App = {
                         Node.Create("Psalms", "Psalms"),
                         Node.Create("Proverbs", "Proverbs"),
                         Node.Create("Ecclesiastes", "Ecclesiastes"),
-                        Node.Create("Song of Songs", "Song of Songs"),
+                        Node.Create("Song of Solomon", "Song of Songs"),
                     ]),
                     Node.Create("majo", "Major Prophets",
                     [
@@ -371,27 +377,35 @@ var App = {
                     ]),
                     Node.Create("mino", "Minor Prophets",
                     [
-                        Node.Create("Hosea", "Hosea"),
-                        Node.Create("Joel", "Joel"),
-                        Node.Create("Amos", "Amos"),
-                        Node.Create("Obadiah", "Obadiah"),
-                        Node.Create("Jonah", "Jonah"),
-                        Node.Create("Micah", "Micah"),
-                        Node.Create("Nahum", "Nahum"),
-                        Node.Create("Habakkuk", "Habakkuk"),
-                        Node.Create("Zephaniah", "Zephaniah"),
-                        Node.Create("Haggai", "Haggai"),
-                        Node.Create("Zechariah", "Zechariah"),
-                        Node.Create("Malachi", "Malachi")
+                        Node.Create("Hosea"),
+                        Node.Create("Joel"),
+                        Node.Create("Amos"),
+                        Node.Create("Obadiah"),
+                        Node.Create("Jonah"),
+                        Node.Create("Micah"),
+                        Node.Create("Nahum"),
+                        Node.Create("Habakkuk"),
+                        Node.Create("Zephaniah"),
+                        Node.Create("Haggai"),
+                        Node.Create("Zechariah"),
+                        Node.Create("Malachi")
                     ])
                 ]),
                 Node.Create("nt", "New Testament", [
-                    Node.Create("1", "Matthew"),
-                    Node.Create("2", "Mark"),
-                    Node.Create("3", "Luke"),
-                    Node.Create("4", "John"),
-                    Node.Create("5", "Acts"),
-                    Node.Create("6", "Romans"),
+                    Node.Create("gospels", "The Gospels", [
+                        Node.Create("Matthew"),
+                        Node.Create("Mark"),
+                        Node.Create("Luke"),
+                        Node.Create("John"),
+                    ]),
+                    Node.Create("Acts"),
+                    Node.Create("Romans"),
+                    Node.Create("1 Corinthians"),
+                    Node.Create("2 Corinthians"),
+                    Node.Create("Galatians"),
+                    Node.Create("Ephesians"),
+                    Node.Create("1 Thessalonians"),
+                    Node.Create("Romans"),
                 ])
             ])
         }
@@ -499,7 +513,7 @@ var App = {
                 {
                     Node.IterateUp(inLeaf, inBranch=>
                     {
-                        inBranch.Leaves = inBranch.Leaves.concat(inLeaf.Leaves);
+                        inBranch.Leaves = _.union(inBranch.Leaves, inLeaf.Leaves)
                     });
                 };
 
@@ -511,26 +525,25 @@ var App = {
                     let id     = columns[i+1];
                     let year   = columns[i+2];
                     let bible  = columns[i+3].split("*");
-                    var topics;
-                    try
-                    {
-                        topics = columns[i+4].split("*");
-                    }
-                    catch(e)
-                    {
-                        console.log(e);
-                    }
+                    let topics = columns[i+4].split("*");
 
                     let output = { title, id, year, topics, bible };
 
+                    let matched = false;
                     topics.forEach(t=>
                     {
                         let match = structTopics[t];
                         if(match)
                         {
                             match.Leaves.push(output);
+                            matched = true;
                         }
                     });
+                    if(!matched)
+                    {
+                        structTopics[""].Leaves.push(output);
+                    }
+                    matched = false;
                     bible.forEach(t=>
                     {
                         let passage = Util.ParsePassage(t);
@@ -538,15 +551,20 @@ var App = {
                         if(match)
                         {
                             match.Leaves.push(output);
+                            matched = true;
                         }
                     });
+                    if(!matched)
+                    {
+                        structBible[""].Leaves.push(output);
+                    }
 
-                    App.State.Items.All[Math.floor(i/4)] = output;
+                    App.State.Items.All.push(output);
                 }
 
                 Object.values(structTopics).forEach(itrUp);
                 Object.values(structBible).forEach(itrUp);
-
+                console.log(App.State.Items.All.length);
             })
             .then(inAccept=>
             {
