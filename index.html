@@ -23,6 +23,7 @@ let ElemApp = props =>
     return h("div", null,
     [
         h(ElemTree, {key:"tree1", tree:App.State.Topics}),
+        h(ElemTree, {key:"tree2", tree:App.State.Bible}),
         h(ElemItems, {key:3})
     ]
     );
@@ -30,15 +31,13 @@ let ElemApp = props =>
 
 let ElemItems = props =>
 {
-
     if(App.State.Items.Active.length == 0)
     {
         return h("div", null, 
             h("h3", null, "no results found")
         )
     }
-
-    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.id} ) );
+    let list = App.State.Pages.All[App.State.Pages.Active].map( i=>h(ElemItem, {...i, key:i.ID} ) );
     let pages = h(ElemPager, {count:App.State.Pages.All.length, active:App.State.Pages.Active}, null);
 
     return h("div", null, [
@@ -53,11 +52,11 @@ let ElemItem = props =>
     return h("div", {key:0}, [
         h("div", {key:1},
         [
-            h("span", {key:0}, props.title),
-            h("em", {key:1}, props.id)
+            h("span", {key:2}, props.title),
+            h("em", {key:3}, props.id)
         ]
         ),
-        h("small", {key:3}, props.bible)
+        h("small", {key:4}, props.bible)
     ])
 };
 let ElemPager = ({count, active}) =>
@@ -175,23 +174,23 @@ let ElemTreeNode = ({node, tree}) =>
     let elemTitle = (inExpandable, inButton) =>
     {
         let attributes = null;
-        let parts = [h("span", null, node.Display)];
+        let parts = [h("span", null, node.Display+" ("+node.Leaves.length+") ")];
 
         if(inExpandable)
         {
             attributes = {onClick:e=>{ e.stopPropagation(); App.Update.Interact(node); }};
             parts.unshift(h("span", null, node.Open?"-":"+"));
         }
-
-        parts.push(
-            h("button",
-            { 
-                disabled: (!inButton&&node.Active) ? true : false,
-                onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); }
-            },
-            node.Active?"remove":"add")
-        );
-
+        if(inButton)
+        {
+            parts.push(
+                h("button",
+                { 
+                    onClick:e=>{ e.stopPropagation(); App.Update.Select(node, tree); }
+                },
+                node.Active?"remove":"add")
+            );
+        }
         return h("div", attributes, parts);
     }
 
@@ -223,6 +222,10 @@ let ElemTreeNode = ({node, tree}) =>
 let Node = {
     Create:(inID, inDisplay, inChildren)=>
     {
+        if(!inDisplay)
+        {
+            inDisplay = inID;
+        }
         let node = {
             ID:inID,
             Display:inDisplay,
@@ -309,9 +312,11 @@ var App = {
         Topics:
         {
             Display:"Topics",
+            Results:[],
             Active:[],
             Root:
             Node.Create("root", "All", [
+                Node.Create("", "Unclassified"),
                 Node.Create("ideologies", "Ideologies", [
                     Node.Create("gospel-the", "The Gospel"),
                     Node.Create("free-will", "Free Will"),
@@ -326,23 +331,82 @@ var App = {
         Bible:
         {
             Display:"Bible",
+            Results:[],
             Active:[],
             Root:
             Node.Create("all", "All", [
-                Node.Create("ot", "Old Testament", [
-                    Node.Create("1", "Genesis"),
-                    Node.Create("2", "Exodus"),
-                    Node.Create("3", "Leviticus"),
-                    Node.Create("4", "Duteronomy"),
-                    Node.Create("5", "Numbers")
+                Node.Create("", "Unclassified"),
+                Node.Create("old ", "Old Testament",
+                [
+                    Node.Create("pent", "Pentatuch",
+                    [
+                        Node.Create("Genesis", "Genesis"),
+                        Node.Create("Exodus", "Exodus"),
+                        Node.Create("Leviticus", "Leviticus"),
+                        Node.Create("Duteronomy", "Duteronomy"),
+                        Node.Create("Numbers", "Numbers")
+                    ]),
+                    Node.Create("hist", "History",
+                    [
+                        Node.Create("Josua", "Josua"),
+                        Node.Create("Judges", "Judges"),
+                        Node.Create("Ruth", "Ruth"),
+                        Node.Create("1 Samuel", "1 Samuel"),
+                        Node.Create("2 Samuel", "2 Samuel"),
+                        Node.Create("1 Kings", "1 Kings"),
+                        Node.Create("2 Kings", "2 Kings"),
+                        Node.Create("1 Chronicles", "1 Chronicles"),
+                        Node.Create("2 Chronicles", "2 Chronicles"),
+                        Node.Create("Ezra", "Ezra"),
+                        Node.Create("Nehemiah", "Nehemiah"),
+                        Node.Create("Esther", "Esther")
+                    ]),
+                    Node.Create("poet", "Poetry",
+                    [
+                        Node.Create("Job", "Job"),
+                        Node.Create("Psalms", "Psalms"),
+                        Node.Create("Proverbs", "Proverbs"),
+                        Node.Create("Ecclesiastes", "Ecclesiastes"),
+                        Node.Create("Song of Solomon", "Song of Songs"),
+                    ]),
+                    Node.Create("majo", "Major Prophets",
+                    [
+                        Node.Create("Isaiah", "Isaiah"),
+                        Node.Create("Jeremiah", "Jeremiah"),
+                        Node.Create("Lamentations", "Lamentations"),
+                        Node.Create("Ezekiel", "Ezekiel"),
+                        Node.Create("Daniel", "Daniel"),
+                    ]),
+                    Node.Create("mino", "Minor Prophets",
+                    [
+                        Node.Create("Hosea"),
+                        Node.Create("Joel"),
+                        Node.Create("Amos"),
+                        Node.Create("Obadiah"),
+                        Node.Create("Jonah"),
+                        Node.Create("Micah"),
+                        Node.Create("Nahum"),
+                        Node.Create("Habakkuk"),
+                        Node.Create("Zephaniah"),
+                        Node.Create("Haggai"),
+                        Node.Create("Zechariah"),
+                        Node.Create("Malachi")
+                    ])
                 ]),
                 Node.Create("nt", "New Testament", [
-                    Node.Create("1", "Matthew"),
-                    Node.Create("2", "Mark"),
-                    Node.Create("3", "Luke"),
-                    Node.Create("4", "John"),
-                    Node.Create("5", "Acts"),
-                    Node.Create("6", "Romans"),
+                    Node.Create("gospels", "The Gospels", [
+                        Node.Create("Matthew"),
+                        Node.Create("Mark"),
+                        Node.Create("Luke"),
+                        Node.Create("John"),
+                    ]),
+                    Node.Create("Acts"),
+                    Node.Create("Romans"),
+                    Node.Create("1 Corinthians"),
+                    Node.Create("2 Corinthians"),
+                    Node.Create("Galatians"),
+                    Node.Create("Ephesians"),
+                    Node.Create("1 Thessalonians")
                 ])
             ])
         }
@@ -353,16 +417,12 @@ var App = {
     Render:()=>ReactDOM.render( h(App.RootComponent), App.RootDOM ),
     ApplyFilters:()=>
     {
-        let topics = App.State.Topics;
-        let items = App.State.Items;
-
-        items.Active = [];
-        for(let i=0; i<topics.Active.length; i++)
+        App.State.Items.Active = _.union(App.State.Topics.Results, App.State.Bible.Results);
+        if(App.State.Items.Active.length == 0)
         {
-            items.Active = items.Active.concat( topics.Active[i].Leaves );
+            App.State.Items.Active = App.State.Items.All;
         }
-
-        App.State.Pages.All = _.chunk(items.Active, 10);
+        App.State.Pages.All = _.chunk(App.State.Items.Active, 10);
         App.State.Pages.Active = 0;
     },
     LeafStructure:(inTree)=>
@@ -416,10 +476,6 @@ var App = {
             if(inNode.Active)
             {
                 clear(inNode);
-                if(inTree.Active.length == 0)
-                {
-                    add(inTree.Root);
-                }
             }
             else
             {
@@ -427,60 +483,87 @@ var App = {
                 Node.IterateDown(inNode, itr);
                 add(inNode);
             }
+
+            inTree.Results = [];
+            inTree.Active.forEach(inNode =>
+            {
+                inTree.Results = inTree.Results.concat( inNode.Leaves );
+            });
+
             App.ApplyFilters();
             App.Render();
         },
         Load:(file)=>
         {
-            let structTopics = App.LeafStructure(App.State.Topics);
             
             fetch(file)
             .then(inAccept=>inAccept.text())
             .then(inAccept=>
             {
-                let columns = inAccept.split("|");
-                App.State.Items.All = [];
+                let structTopics = App.LeafStructure(App.State.Topics);
+                let structBible = App.LeafStructure(App.State.Bible);
 
-                for(let i=0; i<columns.length; i+=4)
+                let itrUp = inLeaf=>
                 {
-                    let topics = columns[i+3].split("*");
+                    Node.IterateUp(inLeaf, inBranch=>
+                    {
+                        inBranch.Leaves = _.union(inBranch.Leaves, inLeaf.Leaves)
+                    });
+                };
 
-                    let output = {
-                        title:columns[i+0],
-                        id:columns[i+1],
-                        bible:columns[i+2].split("*"),
-                        topics:topics
-                    };
+                let columns = inAccept.split("|");
 
+                for(let i=0; i<columns.length; i+=5)
+                {
+                    let title  = columns[i+0];
+                    let id     = columns[i+1];
+                    let year   = columns[i+2];
+                    let bible  = columns[i+3].split("*");
+                    let topics = columns[i+4].split("*");
+
+                    let output = { title, id, year, topics, bible };
+
+                    let matched = false;
                     topics.forEach(t=>
                     {
                         let match = structTopics[t];
                         if(match)
                         {
                             match.Leaves.push(output);
+                            matched = true;
                         }
                     });
-
-                    App.State.Items.All[Math.floor(i/4)] = output;
-                }
-
-                Object.values(structTopics).forEach( inLeaf=>
-                {
-                    Node.IterateUp(inLeaf, inBranch=>
+                    if(!matched)
                     {
-                        inBranch.Leaves = inBranch.Leaves.concat(inLeaf.Leaves);
+                        structTopics[""].Leaves.push(output);
                     }
-                    );
-                }
-                );
+                    matched = false;
+                    bible.forEach(t=>
+                    {
+                        let passage = Util.ParsePassage(t);
+                        let match = structBible[ passage[0] ];
+                        if(match)
+                        {
+                            match.Leaves.push(output);
+                            matched = true;
+                        }
+                    });
+                    if(!matched)
+                    {
+                        structBible[""].Leaves.push(output);
+                    }
 
+                    App.State.Items.All.push(output);
+                }
+
+                Object.values(structTopics).forEach(itrUp);
+                Object.values(structBible).forEach(itrUp);
+                console.log(App.State.Items.All.length);
             })
             .then(inAccept=>
             {
                 App.ApplyFilters();
                 App.Render();
-
-                console.log(structTopics);
             });
 
             
@@ -511,6 +594,8 @@ var App = {
     }
 };
 
-App.Update.Load("data-flat.csv");
+App.Update.Load("data-1.csv");
+App.Update.Load("data-2.csv");
+App.Update.Load("data-3.csv");
 
 </script>
